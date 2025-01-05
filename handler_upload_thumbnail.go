@@ -28,10 +28,9 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-
 	fmt.Println("uploading thumbnail for video", videoID, "by user", userID)
 
 	// TODO: implement the upload here
-
+	// how to upload files in go
 	respondWithJSON(w, http.StatusOK, struct{}{})
 }
