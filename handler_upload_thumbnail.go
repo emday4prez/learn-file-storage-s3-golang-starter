@@ -1,10 +1,11 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -44,11 +45,11 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 
 	ct := header.Header.Get("Content-Type")
 	fmt.Printf("content type: %v\n", ct)
-	imageData, err := io.ReadAll(file)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "unable to read image data", err)
-		return
-	}
+	//imageData, err := io.ReadAll(file)
+	// if err != nil {
+	// 	respondWithError(w, http.StatusBadRequest, "unable to read image data", err)
+	// 	return
+	// }
 
 	video, err := cfg.db.GetVideo(videoID)
 	if err != nil {
@@ -59,9 +60,34 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusUnauthorized, "user id does not match video owner", err)
 		return
 	}
-	encodedString := base64.StdEncoding.EncodeToString(imageData)
-	dataUrl := fmt.Sprintf("data:text/plain;base64,%v", encodedString)
 
+	var extension string
+	switch ct {
+	case "image/png":
+		extension = "png"
+	case "image/jpeg", "image/jpg":
+		extension = "jpg"
+	default:
+		extension = "txt"
+	}
+
+	//encodedString := base64.StdEncoding.EncodeToString(imageData)
+	fileText := fmt.Sprintf("%s.%s", videoIDString, extension)
+	filePath := filepath.Join(cfg.assetsRoot, fileText)
+
+	fmt.Printf("File Path: %s", filePath)
+	f, err := os.Create(filePath)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "error creating the file", err)
+		return
+	}
+	defer f.Close()
+	if _, err := io.Copy(f, file); err != nil {
+		respondWithError(w, http.StatusBadRequest, "error copying the file", err)
+		return
+	}
+
+	//fileUrl := fmt.Sprintf("data:text/plain;base64,%v", encodedString)
 	// videoThumbStruct := thumbnail{
 	// 	data:      imageData,
 	// 	mediaType: ct,
@@ -69,8 +95,10 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 
 	// videoThumbnails[videoID] = videoThumbStruct
 
-	//url := fmt.Sprintf("http://localhost:%d/api/thumbnails/%s", 8091, videoID)
-	video.ThumbnailURL = &dataUrl
+	url := fmt.Sprintf("http://localhost:%d/assets/%s", 8091, fileText)
+	fmt.Printf("URL: %s", url)
+
+	video.ThumbnailURL = &url
 
 	cfg.db.UpdateVideo(video)
 	respondWithJSON(w, http.StatusOK, video)
