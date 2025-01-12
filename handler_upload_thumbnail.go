@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,6 +49,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusBadRequest, "unable to read image data", err)
 		return
 	}
+
 	video, err := cfg.db.GetVideo(videoID)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "unable to get video metadata", err)
@@ -57,16 +59,18 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusUnauthorized, "user id does not match video owner", err)
 		return
 	}
+	encodedString := base64.StdEncoding.EncodeToString(imageData)
+	dataUrl := fmt.Sprintf("data:text/plain;base64,%v", encodedString)
 
-	videoThumbStruct := thumbnail{
-		data:      imageData,
-		mediaType: ct,
-	}
+	// videoThumbStruct := thumbnail{
+	// 	data:      imageData,
+	// 	mediaType: ct,
+	// }
 
-	videoThumbnails[videoID] = videoThumbStruct
+	// videoThumbnails[videoID] = videoThumbStruct
 
-	url := fmt.Sprintf("http://localhost:%d/api/thumbnails/%s", 8091, videoID)
-	video.ThumbnailURL = &url
+	//url := fmt.Sprintf("http://localhost:%d/api/thumbnails/%s", 8091, videoID)
+	video.ThumbnailURL = &dataUrl
 
 	cfg.db.UpdateVideo(video)
 	respondWithJSON(w, http.StatusOK, video)
